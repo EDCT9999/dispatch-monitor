@@ -1,0 +1,2967 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RVR Monitor v3</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0a0a0a;
+      --surface:   #111111;
+      --border:    #1e1e1e;
+      --border-hi: #2a2a2a;
+      --text:      #e8e8e8;
+      --muted:     #484848;
+      --dim:       #282828;
+      --ok-text:   #5aaa5a;
+      --ok-bg:     #0d1f0d;
+      --warn-text: #c8a020;
+      --warn-bg:   #1a1500;
+      --crit-text: #d94040;
+      --crit-bg:   #1a0505;
+      --mono: 'IBM Plex Mono', monospace;
+
+      --tier-clear:  #0d1f0d;
+      --tier-c-text: #5aaa5a;
+      --tier-1:      #1a2a00;
+      --tier-1-text: #88cc33;
+      --tier-2:      #1a1500;
+      --tier-2-text: #c8a020;
+      --tier-3:      #2a1200;
+      --tier-3-text: #e07820;
+      --tier-4:      #1a0505;
+      --tier-4-text: #d94040;
+      --tier-na:     #1a1a1a;
+      --tier-na-text:#484848;
+    }
+
+    html, body {
+      background: var(--bg); color: var(--text);
+      font-family: var(--mono); font-size: 13px;
+      line-height: 1.5; -webkit-font-smoothing: antialiased;
+    }
+
+    .shell { max-width: 1100px; margin: 0 auto; padding: 44px 24px 80px; }
+
+    header {
+      display: flex; align-items: baseline; justify-content: space-between;
+      border-bottom: 1px solid var(--border); padding-bottom: 20px; margin-bottom: 40px;
+    }
+    .wordmark { 
+      font-size: 18px; 
+      font-weight: 600; 
+      letter-spacing: 0.08em; 
+      text-transform: uppercase;
+    }
+    .version { font-size: 10px; color: var(--muted); margin-left: 10px; }
+    .clock { font-size: 11px; color: var(--muted); letter-spacing: 0.06em; }
+
+    .section-head {
+      display: flex; align-items: baseline; justify-content: space-between;
+      margin-bottom: 14px; margin-top: 48px;
+    }
+    .section-head:first-of-type { margin-top: 0; }
+    .section-label {
+      font-size: 14px; 
+      font-weight: 600;
+      letter-spacing: 0.08em; 
+      text-transform: uppercase; 
+      color: var(--text);
+    }
+    .section-sub { font-size: 10px; color: var(--muted); margin-top: 4px; }
+
+    .helper-text { 
+      font-size: 11px; 
+      color: var(--muted); 
+      margin-bottom: 20px; 
+      letter-spacing: 0.02em; 
+      line-height: 1.6; 
+    }
+
+    .notif-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      background: var(--surface); border: 1px solid var(--border-hi);
+      padding: 10px 14px; margin-bottom: 20px; font-size: 11px; color: var(--muted); gap: 12px;
+    }
+    .notif-bar.granted { border-color: #2a3a2a; color: var(--ok-text); background: var(--ok-bg); }
+    .notif-bar.denied  { border-color: #3a1a1a; color: var(--crit-text); background: var(--crit-bg); }
+    .btn-sm {
+      background: none; border: 1px solid var(--border-hi); color: var(--text);
+      font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase;
+      padding: 5px 12px; cursor: pointer; transition: background 0.12s; white-space: nowrap;
+    }
+    .btn-sm:hover { background: var(--dim); }
+
+    .controls { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+    .controls input[type=text], .controls select {
+      flex: 1; min-width: 200px; background: var(--surface); border: 1px solid var(--border-hi);
+      color: var(--text); font-family: var(--mono); font-size: 13px; padding: 9px 14px;
+      outline: none; text-transform: uppercase; letter-spacing: 0.08em;
+    }
+    .controls select { cursor: pointer; }
+    .controls input[type=text]::placeholder { color: var(--muted); text-transform: none; letter-spacing: 0; }
+    .controls input[type=text]:focus, .controls select:focus { border-color: #404040; }
+
+    .btn {
+      background: var(--surface); border: 1px solid var(--border-hi); color: var(--text);
+      font-family: var(--mono); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+      padding: 9px 18px; cursor: pointer; transition: background 0.12s; white-space: nowrap;
+    }
+    .btn:hover { background: var(--dim); }
+    .btn.primary { background: var(--text); color: var(--bg); border-color: var(--text); }
+    .btn.primary:hover { background: #c8c8c8; }
+
+    .threshold-row {
+      display: flex; align-items: center; gap: 10px; margin-bottom: 28px;
+      flex-wrap: wrap; font-size: 11px; color: var(--muted);
+    }
+    .threshold-row select, .threshold-row input[type=number] {
+      background: var(--surface); border: 1px solid var(--border-hi); color: var(--text);
+      font-family: var(--mono); font-size: 12px; padding: 6px 10px; outline: none;
+    }
+    .threshold-row input[type=number] { width: 88px; }
+    .threshold-row select { cursor: pointer; }
+    .threshold-sep { color: var(--border-hi); }
+
+    /* Destination Cards */
+    .dest-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .dest-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 0;
+      position: relative;
+      animation: fadeUp 0.2s ease both;
+    }
+    @keyframes fadeUp { from { opacity:0; transform:translateY(5px); } to { opacity:1; transform:none; } }
+
+    .dest-card::before {
+      content:''; position:absolute; left:0; top:0; bottom:0; width:3px;
+      background: var(--muted); transition: background 0.3s;
+    }
+    .dest-card.ok::before   { background: var(--ok-text); }
+    .dest-card.warn::before { background: var(--warn-text); }
+    .dest-card.crit::before { background: var(--crit-text); }
+    .dest-card.crit { animation: critPulse 2.8s ease-in-out infinite; }
+    @keyframes critPulse { 0%,100% { background:var(--surface); } 50% { background:var(--crit-bg); } }
+
+    .dest-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px 12px 26px;
+      border-bottom: 1px solid var(--border);
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .dest-title {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+    }
+    .dest-icao {
+      font-size: 18px;
+      font-weight: 500;
+      letter-spacing: 0.06em;
+    }
+    .dest-name {
+      font-size: 10px;
+      color: var(--muted);
+    }
+    .eta-input-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 10px;
+      color: var(--muted);
+    }
+    .eta-input {
+      background: var(--bg);
+      border: 1px solid var(--border-hi);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 11px;
+      padding: 4px 8px;
+      width: 56px;
+      outline: none;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      text-align: center;
+    }
+    .eta-input:focus { border-color: #404040; }
+    .eta-z { font-size: 10px; color: var(--muted); }
+    .alt-detail {
+      margin-top: 6px;
+      padding: 8px 10px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      font-size: 10px;
+      line-height: 1.7;
+    }
+    .alt-detail-label {
+      color: var(--muted);
+      font-size: 9px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+    .alt-detail-taf {
+      color: var(--warn-text);
+      word-break: break-all;
+      font-weight: 500;
+    }
+    .alt-detail-explain {
+      color: var(--muted);
+      margin-top: 4px;
+    }
+    .alt-advisory {
+      color: var(--warn-text);
+      font-size: 11px;
+      font-weight: 400;
+    }
+    .alt-window-label {
+      font-size: 10px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+    .alt-trigger-list {
+      margin-top: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .alt-trigger-item {
+      padding: 6px 10px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      font-size: 10px;
+      line-height: 1.6;
+    }
+    .alt-trigger-reason {
+      color: var(--warn-text);
+      font-weight: 500;
+    }
+    .alt-trigger-time {
+      color: var(--muted);
+      margin-left: 6px;
+    }
+    .alt-trigger-taf {
+      color: var(--warn-text);
+      word-break: break-all;
+      margin-top: 2px;
+      font-size: 10px;
+    }
+    .alt-note-outside {
+      font-size: 10px;
+      color: var(--muted);
+      margin-top: 6px;
+      font-style: italic;
+    }
+    .alt-enter-eta {
+      color: var(--muted);
+      font-size: 10px;
+      font-style: italic;
+    }
+
+    .rwy-info-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-bottom: 12px;
+    }
+    .rwy-info-item {
+      display: flex;
+      flex-direction: column;
+    }
+    .rwy-info-label {
+      font-size: 9px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 2px;
+    }
+    .rwy-info-value {
+      font-size: 13px;
+      font-weight: 400;
+      color: var(--text);
+      letter-spacing: 0.04em;
+    }
+    .rwy-info-arr {
+      color: var(--ok-text);
+      font-weight: 500;
+    }
+    .rwy-info-dep {
+      color: var(--warn-text);
+      font-weight: 500;
+    }
+    .remove-btn {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 18px;
+      line-height: 1;
+      padding: 0;
+      transition: color 0.12s;
+    }
+    .remove-btn:hover { color: var(--crit-text); }
+
+    .alert-banner {
+      background: var(--warn-bg);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 20px 10px 26px;
+      font-size: 11px;
+      color: var(--warn-text);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .alert-banner.crit {
+      background: var(--crit-bg);
+      color: var(--crit-text);
+    }
+    .alert-icon { font-size: 14px; }
+
+    .dest-body {
+      padding: 16px 20px 16px 26px;
+    }
+
+    .info-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      margin-bottom: 12px;
+      font-size: 12px;
+    }
+    .info-item {
+      display: flex;
+      flex-direction: column;
+    }
+    .info-label {
+      font-size: 9px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 2px;
+    }
+    .info-value {
+      color: var(--text);
+      font-weight: 400;
+    }
+    .info-value.crit { color: var(--crit-text); font-weight: 500; }
+    .info-value.warn { color: var(--warn-text); font-weight: 500; }
+    .info-value.ok { color: var(--ok-text); }
+
+    .rvr-inline {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      font-size: 11px;
+    }
+    .rvr-rwy-inline {
+      display: flex;
+      align-items: baseline;
+      gap: 4px;
+    }
+    .rvr-rwy-label {
+      font-size: 9px;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+    .rvr-rwy-value {
+      font-size: 13px;
+      font-weight: 400;
+    }
+
+    .badges {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+    .badge {
+      display: inline-block;
+      font-size: 9px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      font-weight: 500;
+      border-radius: 2px;
+    }
+    .badge.ok   { background: var(--ok-bg);   color: var(--ok-text);   border: 1px solid #1a3a1a; }
+    .badge.warn { background: var(--warn-bg); color: var(--warn-text); border: 1px solid #3a2a00; }
+    .badge.crit { background: var(--crit-bg); color: var(--crit-text); border: 1px solid #4a1010; }
+    .badge.dim  { background: var(--dim);     color: var(--muted);     border: 1px solid var(--border-hi); }
+
+    .expandable {
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border);
+    }
+    .expand-btn {
+      background: none;
+      border: none;
+      color: var(--text);
+      cursor: pointer;
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 6px 12px 6px 0;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: color 0.12s;
+    }
+    .expand-btn:hover { color: var(--ok-text); }
+    .expand-icon {
+      font-size: 10px;
+      transition: transform 0.2s;
+    }
+    .expand-btn.open .expand-icon { transform: rotate(90deg); }
+
+    .expand-content {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease;
+    }
+    .expand-content.open { max-height: 1000px; }
+
+    .atis-text {
+      font-size: 11px;
+      line-height: 1.8;
+      color: var(--text);
+      margin-top: 10px;
+      padding: 12px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+    }
+    .atis-unavailable {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 10px;
+      padding: 12px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      font-style: italic;
+    }
+    .rwy-arr {
+      background: var(--ok-bg);
+      color: var(--ok-text);
+      padding: 2px 5px;
+      border-radius: 2px;
+      font-weight: 500;
+    }
+    .rwy-dep {
+      background: var(--warn-bg);
+      color: var(--warn-text);
+      padding: 2px 5px;
+      border-radius: 2px;
+      font-weight: 500;
+    }
+
+    .weather-text {
+      font-size: 11px;
+      line-height: 1.8;
+      color: #888;
+      margin-top: 10px;
+      padding: 12px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      word-break: break-all;
+    }
+
+    .obs-time {
+      font-size: 10px;
+      color: var(--muted);
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+    }
+
+    .empty {
+      padding: 56px 0;
+      text-align: center;
+      color: var(--muted);
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      border: 1px dashed var(--border);
+    }
+
+    .statusbar {
+      margin-top: 20px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+      font-size: 10px;
+      color: var(--muted);
+    }
+    .status-left {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .live-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--ok-text);
+      animation: blink 1.4s steps(1) infinite;
+    }
+    @keyframes blink { 50% { opacity: 0; } }
+
+    .alert-log {
+      border: 1px solid var(--border);
+      background: var(--surface);
+      max-height: 140px;
+      overflow-y: auto;
+    }
+    .log-empty {
+      padding: 14px 16px;
+      font-size: 10px;
+      color: var(--muted);
+    }
+    .alert-entry {
+      display: flex;
+      gap: 12px;
+      padding: 8px 16px;
+      border-bottom: 1px solid var(--border);
+      font-size: 10px;
+      animation: fadeUp 0.2s ease;
+    }
+    .alert-entry:last-child { border-bottom: none; }
+    .alert-time {
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .alert-msg { color: var(--crit-text); }
+
+    /* FAA Feed Styles */
+    .faa-controls {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .faa-controls input[type=text] {
+      background: var(--surface);
+      border: 1px solid var(--border-hi);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 12px;
+      padding: 7px 12px;
+      outline: none;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      width: 160px;
+    }
+    .faa-controls input[type=text]::placeholder {
+      color: var(--muted);
+      text-transform: none;
+      letter-spacing: 0;
+    }
+    .faa-filter-label {
+      font-size: 10px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .faa-key {
+      display: flex;
+      gap: 0;
+      margin-bottom: 14px;
+      border: 1px solid var(--border);
+      overflow: hidden;
+    }
+    .key-item {
+      flex: 1;
+      padding: 6px 0;
+      text-align: center;
+      font-size: 9px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      font-weight: 500;
+    }
+    .key-item.k-clear { background: var(--tier-clear); color: var(--tier-c-text); border-right: 1px solid var(--border); }
+    .key-item.k-1     { background: var(--tier-1);     color: var(--tier-1-text); border-right: 1px solid var(--border); }
+    .key-item.k-2     { background: var(--tier-2);     color: var(--tier-2-text); border-right: 1px solid var(--border); }
+    .key-item.k-3     { background: var(--tier-3);     color: var(--tier-3-text); border-right: 1px solid var(--border); }
+    .key-item.k-4     { background: var(--tier-4);     color: var(--tier-4-text); border-right: 1px solid var(--border); }
+    .key-item.k-na    { background: var(--tier-na);    color: var(--tier-na-text); }
+
+    .faa-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 2px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      padding: 2px;
+      max-height: 420px;
+      overflow-y: auto;
+    }
+    .faa-tile {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 72px;
+      padding: 7px 4px 5px;
+      cursor: default;
+      border-radius: 0;
+      transition: filter 0.1s;
+      animation: fadeUp 0.15s ease both;
+    }
+    .faa-tile:hover { filter: brightness(1.25); }
+    .faa-tile.selected { outline: 2px solid var(--text); outline-offset: -2px; }
+    .faa-tile .f-code {
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.06em;
+    }
+    .faa-tile .f-val {
+      font-size: 10px;
+      font-weight: 300;
+      margin-top: 2px;
+      letter-spacing: 0.02em;
+    }
+
+    .faa-tile.t-clear { background: var(--tier-clear); color: var(--tier-c-text); }
+    .faa-tile.t-1     { background: var(--tier-1);     color: var(--tier-1-text); }
+    .faa-tile.t-2     { background: var(--tier-2);     color: var(--tier-2-text); }
+    .faa-tile.t-3     { background: var(--tier-3);     color: var(--tier-3-text); }
+    .faa-tile.t-4     { background: var(--tier-4);     color: var(--tier-4-text); }
+    .faa-tile.t-na    { background: var(--tier-na);    color: var(--tier-na-text); }
+
+    .faa-status {
+      font-size: 11px;
+      color: var(--muted);
+      padding: 24px 0;
+      text-align: center;
+      width: 100%;
+    }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+    .toggle-row label {
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    input[type=checkbox] {
+      accent-color: var(--ok-text);
+      width: 13px;
+      height: 13px;
+      cursor: pointer;
+    }
+
+    /* FAA Detail Panel */
+    .faa-detail {
+      margin-top: 10px;
+      background: var(--surface);
+      border: 1px solid var(--border-hi);
+      animation: fadeUp 0.2s ease both;
+    }
+    .faa-detail-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .faa-detail-title {
+      font-size: 14px;
+      font-weight: 500;
+      letter-spacing: 0.06em;
+    }
+    .faa-detail-name {
+      font-size: 10px;
+      color: var(--muted);
+      margin-left: 10px;
+      font-weight: 300;
+    }
+    .faa-detail-time {
+      font-size: 10px;
+      color: var(--muted);
+    }
+    .faa-detail-close {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 18px;
+      line-height: 1;
+      padding: 0 0 0 12px;
+      transition: color 0.12s;
+    }
+    .faa-detail-close:hover { color: var(--text); }
+    .faa-detail-body {
+      padding: 14px 16px;
+    }
+    .faa-detail-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    .faa-detail-table th {
+      text-align: center;
+      padding: 8px 10px;
+      font-size: 9px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+      font-weight: 500;
+    }
+    .faa-detail-table th:first-child { text-align: left; }
+    .faa-detail-table td {
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--border);
+      text-align: center;
+      font-weight: 400;
+    }
+    .faa-detail-table td:first-child {
+      text-align: left;
+      font-weight: 500;
+      letter-spacing: 0.06em;
+    }
+    .faa-detail-table tr:last-child td { border-bottom: none; }
+    .faa-detail-table tr:hover td { background: rgba(255,255,255,0.02); }
+    .faa-detail-table td.t-clear { color: var(--tier-c-text); }
+    .faa-detail-table td.t-1 { color: var(--tier-1-text); }
+    .faa-detail-table td.t-2 { color: var(--tier-2-text); }
+    .faa-detail-table td.t-3 { color: var(--tier-3-text); font-weight: 500; }
+    .faa-detail-table td.t-4 { color: var(--tier-4-text); font-weight: 500; }
+    .faa-detail-table td.t-na { color: var(--tier-na-text); }
+    .faa-detail-loading {
+      padding: 20px;
+      text-align: center;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .faa-detail-link {
+      margin-top: 8px;
+      font-size: 10px;
+      color: var(--muted);
+    }
+    .faa-detail-link a {
+      color: var(--ok-text);
+      text-decoration: none;
+    }
+    .faa-detail-link a:hover { text-decoration: underline; }
+
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--dim);
+      border: 1px solid var(--border-hi);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 11px;
+      padding: 10px 16px;
+      letter-spacing: 0.06em;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+      max-width: 360px;
+      z-index: 1000;
+    }
+    .toast.show { opacity: 1; }
+
+    /* FAA OIS Styles */
+    .ois-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .ois-category {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      overflow: hidden;
+    }
+    .ois-cat-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      transition: background 0.12s;
+    }
+    .ois-cat-header:hover { background: var(--dim); }
+    .ois-cat-title {
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .ois-count {
+      font-size: 10px;
+      font-weight: 400;
+      padding: 2px 7px;
+      border-radius: 2px;
+      letter-spacing: 0;
+      text-transform: none;
+    }
+    .ois-count.active {
+      background: var(--crit-bg);
+      color: var(--crit-text);
+      border: 1px solid #4a1010;
+    }
+    .ois-count.clear {
+      background: var(--ok-bg);
+      color: var(--ok-text);
+      border: 1px solid #1a3a1a;
+    }
+    .ois-count.info {
+      background: var(--warn-bg);
+      color: var(--warn-text);
+      border: 1px solid #3a2a00;
+    }
+    .ois-chevron {
+      font-size: 10px;
+      color: var(--muted);
+      transition: transform 0.2s;
+    }
+    .ois-cat-header.open .ois-chevron { transform: rotate(90deg); }
+    .ois-cat-body {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease;
+    }
+    .ois-cat-body.open { max-height: 2000px; }
+
+    .ois-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+    }
+    .ois-table th {
+      text-align: left;
+      padding: 8px 12px;
+      font-size: 9px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+      font-weight: 500;
+      background: var(--bg);
+    }
+    .ois-table td {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+      vertical-align: top;
+    }
+    .ois-table tr:last-child td { border-bottom: none; }
+    .ois-table tr:hover td { background: rgba(255,255,255,0.02); }
+    .ois-empty {
+      padding: 16px;
+      font-size: 11px;
+      color: var(--ok-text);
+      text-align: center;
+    }
+    .ois-arpt {
+      font-weight: 500;
+      letter-spacing: 0.06em;
+    }
+    .ois-reason {
+      color: var(--warn-text);
+      font-size: 10px;
+    }
+    .ois-time {
+      color: var(--muted);
+      font-size: 10px;
+      white-space: nowrap;
+    }
+    .ois-delay {
+      color: var(--crit-text);
+      font-weight: 500;
+    }
+    .ois-misc {
+      padding: 14px 16px;
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+    .ois-status {
+      font-size: 11px;
+      color: var(--muted);
+      padding: 24px 0;
+      text-align: center;
+    }
+    .ois-link {
+      font-size: 10px;
+      color: var(--muted);
+      margin-top: 10px;
+    }
+    .ois-link a {
+      color: var(--ok-text);
+      text-decoration: none;
+    }
+    .ois-link a:hover { text-decoration: underline; }
+
+    @media (max-width: 600px) {
+      .shell { padding: 24px 14px 60px; }
+      .controls { flex-direction: column; }
+      .info-row { flex-direction: column; gap: 10px; }
+      .faa-key { flex-wrap: wrap; }
+      .key-item { flex: none; width: calc(50% - 1px); }
+      .dest-header { flex-direction: column; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+<div class="shell">
+
+  <header>
+    <div>
+      <span class="wordmark">RVR Monitor</span>
+      <span class="version">v3</span>
+    </div>
+    <div class="clock" id="clock">----Z</div>
+  </header>
+
+  <div class="notif-bar" id="notifBar">
+    <span id="notifLabel">Enable browser alerts — popup + audio beep when conditions are critical.</span>
+    <button class="btn-sm" id="notifBtn" onclick="requestNotif()">Enable Alerts</button>
+  </div>
+
+  <div class="section-head">
+    <div>
+      <div class="section-label">Destination Monitor</div>
+      <div class="section-sub">Complete operational picture per destination</div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <input type="text" id="icaoInput" placeholder="Enter 4-letter ICAO code" maxlength="4" />
+    <button class="btn primary" onclick="addDestination()">Add Destination</button>
+    <button class="btn" onclick="refreshAll()">↻ Refresh All</button>
+  </div>
+  <div class="helper-text">US airports only • Newest destinations appear first</div>
+
+  <div class="threshold-row">
+    <span>RVR Alert Threshold</span>
+    <input type="number" id="threshVal" value="2400" min="0" max="9999" step="100" />
+    <select id="threshUnit">
+      <option value="ft">ft</option>
+      <option value="m">m</option>
+    </select>
+    <span class="threshold-sep">—</span>
+    <span>Preset</span>
+    <select id="presetSel" onchange="applyPreset()">
+      <option value="">Custom</option>
+      <option value="1800">CAT I (1800 ft)</option>
+      <option value="1200">CAT II (1200 ft)</option>
+      <option value="700">CAT IIIa (700 ft)</option>
+      <option value="300">CAT IIIb (300 ft)</option>
+    </select>
+  </div>
+
+  <div id="destGrid" class="dest-grid"></div>
+
+  <div class="statusbar">
+    <div class="status-left">
+      <div class="live-dot"></div>
+      <span id="lastUpdate">–</span>
+    </div>
+  </div>
+
+  <div class="section-head">
+    <div class="section-label">Alert Log</div>
+  </div>
+  <div class="alert-log" id="alertLog">
+    <div class="log-empty" id="logEmpty">No alerts this session.</div>
+  </div>
+
+  <div class="section-head">
+    <div>
+      <div class="section-label">FAA National RVR Feed</div>
+      <div class="section-sub">Source: rvr.data.faa.gov — shows lowest reading per airport over last 10 min</div>
+    </div>
+  </div>
+
+  <div class="faa-key">
+    <div class="key-item k-clear">&gt;6000</div>
+    <div class="key-item k-1">2500–6000</div>
+    <div class="key-item k-2">1300–2400</div>
+    <div class="key-item k-3">800–1200</div>
+    <div class="key-item k-4">0–700</div>
+    <div class="key-item k-na">N/A</div>
+  </div>
+
+  <div class="faa-controls">
+    <input type="text" id="faaSearch" placeholder="Filter airport..." maxlength="4" oninput="renderFAA()" />
+    <span class="faa-filter-label">Show only</span>
+    <label class="toggle-row" style="margin-bottom:0">
+      <input type="checkbox" id="showLowOnly" onchange="renderFAA()" />
+      Below 6000 ft only
+    </label>
+    <button class="btn" onclick="refreshFAA()">↻ Refresh Feed</button>
+  </div>
+  <div class="helper-text" style="margin-bottom:10px;">Click any airport tile to pin a detailed per-runway RVR monitor below · Feed tiles show the lowest value in the last 10 min — pinned cards show current real-time sensor readings</div>
+
+  <div class="faa-grid" id="faaGrid">
+    <div class="faa-status" id="faaStatus">Loading FAA feed…</div>
+  </div>
+
+  <div class="threshold-row" id="pinnedThreshRow" style="display:none; margin-top: 14px;">
+    <span>Pinned RVR Alert Threshold</span>
+    <input type="number" id="pinnedThreshVal" value="2400" min="0" max="9999" step="100" />
+    <select id="pinnedThreshUnit">
+      <option value="ft">ft</option>
+      <option value="m">m</option>
+    </select>
+    <span class="threshold-sep">—</span>
+    <span>Preset</span>
+    <select id="pinnedPresetSel" onchange="applyPinnedPreset()">
+      <option value="">Custom</option>
+      <option value="1800">CAT I (1800 ft)</option>
+      <option value="1200">CAT II (1200 ft)</option>
+      <option value="700">CAT IIIa (700 ft)</option>
+      <option value="300">CAT IIIb (300 ft)</option>
+    </select>
+  </div>
+
+  <div id="faaPinnedCards" class="dest-grid" style="margin-top: 12px;"></div>
+
+  <div class="section-head">
+    <div>
+      <div class="section-label">FAA OIS — NAS Status</div>
+      <div class="section-sub">Source: fly.faa.gov/ois — GDPs, ground stops, delays, closures & deicing · Changes will be logged to the Alert Log on each refresh</div>
+    </div>
+    <button class="btn" onclick="refreshOIS()">↻ Refresh OIS</button>
+  </div>
+
+  <div id="oisContainer">
+    <div class="ois-status" id="oisStatus">Loading FAA OIS…</div>
+  </div>
+  <div class="ois-link">Full OIS: <a href="https://www.fly.faa.gov/ois/" target="_blank" rel="noopener">fly.faa.gov/ois</a> · NAS Dashboard: <a href="https://nasstatus.faa.gov/" target="_blank" rel="noopener">nasstatus.faa.gov</a></div>
+
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+  const PROXY = 'https://corsproxy.io/?url=';
+  const AWC_BASE = 'https://aviationweather.gov/api/data';
+
+  function metarUrl(icao) {
+    return PROXY + encodeURIComponent(`${AWC_BASE}/metar?ids=${icao}&format=json&hours=2`);
+  }
+  function tafUrl(icao) {
+    return PROXY + encodeURIComponent(`${AWC_BASE}/taf?ids=${icao}&format=json&hours=12`);
+  }
+  function atisUrl(icao) {
+    return PROXY + encodeURIComponent(`https://atis.info/api/${icao}`);
+  }
+  function faaUrl() {
+    return PROXY + encodeURIComponent('https://rvr.data.faa.gov/cgi-bin/rvr-status.pl');
+  }
+
+  function isUSAirport(icao) {
+    if (!icao || icao.length !== 4) return false;
+    const upper = icao.toUpperCase();
+    return upper.startsWith('K') || upper.startsWith('P') || upper.startsWith('T') || upper.startsWith('PA');
+  }
+
+  // Storage: array of {icao, eta} objects
+  let destinations = JSON.parse(localStorage.getItem('dest_airports_v3') || '[{"icao":"KSEA","eta":""}]');
+  let destData = {};
+  let prevStatus = {};
+  let faaData = [];
+  let refreshTimer, faaTimer;
+  const REFRESH_MS = 3 * 60 * 1000;
+  const FAA_REFRESH_MS = 2 * 60 * 1000;
+
+  function tick() {
+    const d = new Date();
+    const hh = String(d.getUTCHours()).padStart(2, '0');
+    const mm = String(d.getUTCMinutes()).padStart(2, '0');
+    document.getElementById('clock').textContent = `${hh}${mm}Z`;
+  }
+  setInterval(tick, 1000);
+  tick();
+
+  function updateNotifBar() {
+    const bar = document.getElementById('notifBar');
+    const lbl = document.getElementById('notifLabel');
+    const btn = document.getElementById('notifBtn');
+    if (!('Notification' in window)) {
+      lbl.textContent = 'Notifications not supported.';
+      btn.style.display = 'none';
+      return;
+    }
+    const p = Notification.permission;
+    if (p === 'granted') {
+      bar.className = 'notif-bar granted';
+      lbl.textContent = '✓ Alerts active — browser popup + audio beep on critical conditions.';
+      btn.style.display = 'none';
+    } else if (p === 'denied') {
+      bar.className = 'notif-bar denied';
+      lbl.textContent = 'Alerts blocked. Allow notifications in browser settings, then refresh.';
+      btn.style.display = 'none';
+    }
+  }
+
+  async function requestNotif() {
+    if (!('Notification' in window)) return;
+    await Notification.requestPermission();
+    updateNotifBar();
+  }
+
+  function fireAlert(icao, reason) {
+    const empty = document.getElementById('logEmpty');
+    if (empty) empty.remove();
+    const now = new Date();
+    const ts = `${String(now.getUTCHours()).padStart(2, '0')}${String(now.getUTCMinutes()).padStart(2, '0')}Z`;
+    const log = document.getElementById('alertLog');
+    const row = document.createElement('div');
+    row.className = 'alert-entry';
+    row.innerHTML = `<span class="alert-time">${ts}</span><span class="alert-msg">⚠ ${icao} — ${reason}</span>`;
+    log.prepend(row);
+    if (Notification.permission === 'granted') {
+      try {
+        new Notification(`Alert — ${icao}`, {
+          body: reason,
+          tag: `alert-${icao}`,
+          requireInteraction: true
+        });
+      } catch (e) {}
+    }
+    beep(880, 0.3, 0.5);
+    setTimeout(() => beep(880, 0.3, 0.5), 650);
+  }
+
+  function fireGoodAlert(icao, reason) {
+    const empty = document.getElementById('logEmpty');
+    if (empty) empty.remove();
+    const now = new Date();
+    const ts = `${String(now.getUTCHours()).padStart(2, '0')}${String(now.getUTCMinutes()).padStart(2, '0')}Z`;
+    const log = document.getElementById('alertLog');
+    const row = document.createElement('div');
+    row.className = 'alert-entry';
+    row.innerHTML = `<span class="alert-time">${ts}</span><span class="alert-msg" style="color:var(--ok-text);">✓ ${icao} — ${reason}</span>`;
+    log.prepend(row);
+    if (Notification.permission === 'granted') {
+      try {
+        new Notification(`✓ ${icao}`, {
+          body: reason,
+          tag: `alert-${icao}`,
+          requireInteraction: false
+        });
+      } catch (e) {}
+    }
+    beep(523, 0.2, 0.3);
+    setTimeout(() => beep(659, 0.2, 0.3), 300);
+    setTimeout(() => beep(784, 0.2, 0.4), 600);
+  }
+
+  function beep(freq, vol, dur) {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(vol, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
+      osc.start();
+      osc.stop(ctx.currentTime + dur);
+    } catch (e) {}
+  }
+
+  function getThreshFt() {
+    const v = parseFloat(document.getElementById('threshVal').value) || 2400;
+    return document.getElementById('threshUnit').value === 'm' ? v * 3.28084 : v;
+  }
+
+  function applyPreset() {
+    const v = document.getElementById('presetSel').value;
+    if (!v) return;
+    document.getElementById('threshVal').value = v;
+    document.getElementById('threshUnit').value = 'ft';
+    renderAll();
+  }
+
+  document.getElementById('threshVal').addEventListener('input', renderAll);
+  document.getElementById('threshUnit').addEventListener('change', renderAll);
+
+  // ========== ETA Management ==========
+
+  function getDefaultETA() {
+    return '';
+  }
+
+  function updateETA(icao, raw) {
+    // Accept 4-digit Zulu (e.g. 1430, 0230)
+    const eta = raw.replace(/[^0-9]/g, '').slice(0, 4);
+    const dest = destinations.find(d => d.icao === icao);
+    if (dest) {
+      dest.eta = eta;
+      persist();
+      // Re-check alternate requirement with new ETA
+      if (destData[icao] && destData[icao].taf) {
+        destData[icao].alternateRequired = checkAlternateRequired(destData[icao].taf, eta);
+        renderAll();
+      }
+    }
+  }
+
+  // ========== Data Fetching ==========
+
+  async function fetchDestination(icao, eta) {
+    const data = { icao, loading: true };
+    destData[icao] = data;
+
+    try {
+      // Fetch METAR, TAF, ATIS in parallel
+      const [metarRes, tafRes, atisRes] = await Promise.all([
+        fetch(metarUrl(icao)),
+        fetch(tafUrl(icao)),
+        fetch(atisUrl(icao))
+      ]);
+
+      // Parse METAR
+      if (metarRes.ok) {
+        const metarArr = await metarRes.json();
+        if (Array.isArray(metarArr) && metarArr.length > 0) {
+          data.metar = metarArr[0];
+          data.rvrList = parseRVR(data.metar.rawOb);
+        }
+      }
+
+      // Parse TAF
+      if (tafRes.ok) {
+        const tafArr = await tafRes.json();
+        if (Array.isArray(tafArr) && tafArr.length > 0) {
+          data.taf = tafArr[0];
+          data.alternateRequired = checkAlternateRequired(data.taf, eta);
+        }
+      }
+
+      // Parse ATIS
+      if (atisRes.ok) {
+        const atisArr = await atisRes.json();
+        if (Array.isArray(atisArr) && atisArr.length > 0 && atisArr[0].datis) {
+          data.atis = atisArr[0].datis;
+        } else {
+          data.atis = null; // No ATIS available
+        }
+      } else {
+        data.atis = null;
+      }
+
+      data.loading = false;
+      destData[icao] = data;
+    } catch (e) {
+      data.error = e.message;
+      data.loading = false;
+      destData[icao] = data;
+    }
+  }
+
+  function parseRVR(raw) {
+    if (!raw) return [];
+    const out = [];
+    const re = /R(\d{2}[LRC]?)\/([MP]?)(\d+)(?:V([MP]?)(\d+))?FT/g;
+    let m;
+    while ((m = re.exec(raw)) !== null) {
+      out.push({
+        rwy: m[1],
+        mod: m[2],
+        val: parseInt(m[3]),
+        varHiMod: m[4] || '',
+        varHi: m[5] ? parseInt(m[5]) : null
+      });
+    }
+    return out;
+  }
+
+  function parseETAToMinutes(etaStr) {
+    // Convert 4-digit Zulu (e.g. "1430") to minutes since midnight UTC
+    if (!etaStr) return null;
+    const clean = etaStr.replace(/[^0-9]/g, '');
+    if (clean.length < 3 || clean.length > 4) return null;
+    const padded = clean.padStart(4, '0');
+    const hh = parseInt(padded.slice(0, 2));
+    const mm = parseInt(padded.slice(2, 4));
+    if (isNaN(hh) || isNaN(mm) || hh > 23 || mm > 59) return null;
+    return hh * 60 + mm;
+  }
+
+  function checkAlternateRequired(taf, etaStr) {
+    // Part 121 Domestic: Alternate required if forecast < 2000 ft ceiling OR < 3 SM vis
+    // within ±1 hour of ETA
+    if (!taf || !taf.rawTAF) return { status: 'unknown', reason: 'No TAF available' };
+
+    const raw = taf.rawTAF;
+    const etaMinutes = parseETAToMinutes(etaStr);
+    const hasETA = etaMinutes !== null;
+
+    // Parse TAF into time-bounded groups
+    const groups = parseTAFGroups(raw);
+
+    // Scan all groups for triggering conditions
+    const triggers = [];
+    for (const group of groups) {
+      // Check ceiling: BKN/OVC below 020 (2000 ft)
+      const ceilMatches = group.text.match(/((?:BKN|OVC)\d{3})/g);
+      if (ceilMatches) {
+        for (const cm of ceilMatches) {
+          const height = parseInt(cm.slice(-3));
+          if (height < 20) {
+            triggers.push({
+              group,
+              reason: `Ceiling ${height * 100} ft (< 2000 ft)`,
+              element: cm,
+              explanation: `${cm} = ${height * 100} ft ceiling in ${group.type} group valid ${group.label}`
+            });
+          }
+        }
+      }
+
+      // Check visibility < 3 SM
+      const visMatches = group.text.match(/\s(\d+\s+)?(\d+\/\d+)?(\d+)?SM/g);
+      if (visMatches) {
+        for (const vm of visMatches) {
+          const visStr = vm.trim().replace('SM', '').trim();
+          const vis = parseVisFraction(visStr);
+          if (vis !== null && vis < 3) {
+            triggers.push({
+              group,
+              reason: `Visibility ${visStr} SM (< 3 SM)`,
+              element: `${visStr}SM`,
+              explanation: `${visStr}SM visibility in ${group.type} group valid ${group.label}`
+            });
+          }
+        }
+      }
+    }
+
+    // No triggers anywhere in the TAF
+    if (triggers.length === 0) {
+      return { status: 'not-required', required: false, reason: '', hasETA };
+    }
+
+    // No ETA entered — advisory mode
+    if (!hasETA) {
+      return {
+        status: 'advisory',
+        required: false,
+        hasETA: false,
+        reason: 'TAF contains conditions that may require an alternate',
+        triggers: triggers.map(t => ({
+          reason: t.reason,
+          tafExcerpt: t.group.text.trim(),
+          timeWindow: t.group.label,
+          type: t.group.type,
+          explanation: t.explanation
+        }))
+      };
+    }
+
+    // ETA entered — check ±1hr window
+    const etaStart = (etaMinutes - 60 + 1440) % 1440;
+    const etaEnd = (etaMinutes + 60) % 1440;
+    const etaHH = String(Math.floor(etaMinutes / 60)).padStart(2, '0');
+    const etaMM = String(etaMinutes % 60).padStart(2, '0');
+    const windowStartHH = String(Math.floor(((etaMinutes - 60 + 1440) % 1440) / 60)).padStart(2, '0');
+    const windowStartMM = String(((etaMinutes - 60 + 1440) % 1440) % 60).padStart(2, '0');
+    const windowEndHH = String(Math.floor(((etaMinutes + 60) % 1440) / 60)).padStart(2, '0');
+    const windowEndMM = String(((etaMinutes + 60) % 1440) % 60).padStart(2, '0');
+    const windowLabel = `${windowStartHH}${windowStartMM}–${windowEndHH}${windowEndMM}Z`;
+
+    // Find triggers that overlap the ETA window
+    const windowTriggers = triggers.filter(t => 
+      timeOverlaps(t.group.startMin, t.group.endMin, etaStart, etaEnd)
+    );
+
+    if (windowTriggers.length > 0) {
+      const first = windowTriggers[0];
+      return {
+        status: 'required',
+        required: true,
+        hasETA: true,
+        reason: first.reason,
+        tafExcerpt: first.group.text.trim(),
+        timeWindow: first.group.label,
+        explanation: `${first.explanation} — within ETA ±1hr window (${windowLabel})`,
+        windowLabel,
+        // Also include all triggers outside window for context
+        otherTriggers: triggers.filter(t => 
+          !timeOverlaps(t.group.startMin, t.group.endMin, etaStart, etaEnd)
+        ).map(t => ({ reason: t.reason, timeWindow: t.group.label, type: t.group.type }))
+      };
+    }
+
+    // ETA window is clear, but other parts of TAF have triggers
+    return {
+      status: 'not-required',
+      required: false,
+      hasETA: true,
+      reason: '',
+      windowLabel,
+      // Show that other groups DO have conditions
+      otherTriggers: triggers.map(t => ({
+        reason: t.reason,
+        tafExcerpt: t.group.text.trim(),
+        timeWindow: t.group.label,
+        type: t.group.type,
+        explanation: t.explanation
+      }))
+    };
+  }
+
+  function parseVisFraction(str) {
+    // Parse visibility strings like "1/2", "1 1/2", "3", "P6"
+    if (!str) return null;
+    const clean = str.replace(/^P/, '').trim(); // P = plus (>)
+    if (clean.includes(' ')) {
+      // Mixed number like "1 1/2"
+      const parts = clean.split(/\s+/);
+      const whole = parseFloat(parts[0]);
+      if (parts[1] && parts[1].includes('/')) {
+        const [n, d] = parts[1].split('/').map(Number);
+        return whole + (n / d);
+      }
+      return whole;
+    }
+    if (clean.includes('/')) {
+      const [n, d] = clean.split('/').map(Number);
+      return d ? n / d : null;
+    }
+    return parseFloat(clean) || null;
+  }
+
+  function parseTAFGroups(rawTAF) {
+    // Split TAF into time-bounded groups: base forecast, FM, TEMPO, BECMG, PROB
+    const groups = [];
+
+    // Remove header line (TAF AMD KSEA 241730Z ...)
+    // Find the main validity period
+    const validMatch = rawTAF.match(/\b(\d{4})\/(\d{4})\b/);
+    let tafStartMin = 0, tafEndMin = 1440;
+    if (validMatch) {
+      tafStartMin = parseDDHH(validMatch[1]);
+      tafEndMin = parseDDHH(validMatch[2]);
+    }
+
+    // Split on FM, TEMPO, BECMG, PROB groups
+    // Pattern: FM(\d{6}), TEMPO (\d{4}/\d{4}), BECMG (\d{4}/\d{4}), PROB\d{2} TEMPO (\d{4}/\d{4})
+    const groupPattern = /\b(FM\d{6}|TEMPO\s+\d{4}\/\d{4}|BECMG\s+\d{4}\/\d{4}|PROB\d{2}\s+(?:TEMPO\s+)?\d{4}\/\d{4})\b/g;
+    
+    const splits = [];
+    let match;
+    while ((match = groupPattern.exec(rawTAF)) !== null) {
+      splits.push({ index: match.index, header: match[1] });
+    }
+
+    // Base group: from start to first split
+    const baseEnd = splits.length > 0 ? splits[0].index : rawTAF.length;
+    const baseText = rawTAF.substring(0, baseEnd);
+    groups.push({
+      type: 'BASE',
+      text: baseText,
+      startMin: tafStartMin,
+      endMin: splits.length > 0 ? parseGroupStart(splits[0].header) : tafEndMin,
+      label: validMatch ? `${validMatch[1]}–${validMatch[2]}Z` : 'base'
+    });
+
+    // Parse each subsequent group
+    for (let i = 0; i < splits.length; i++) {
+      const start = splits[i].index;
+      const end = i + 1 < splits.length ? splits[i + 1].index : rawTAF.length;
+      const text = rawTAF.substring(start, end);
+      const header = splits[i].header;
+      const times = parseGroupTimes(header, tafEndMin);
+
+      let type = 'FM';
+      if (header.startsWith('TEMPO')) type = 'TEMPO';
+      else if (header.startsWith('BECMG')) type = 'BECMG';
+      else if (header.startsWith('PROB')) type = 'PROB';
+
+      groups.push({
+        type: type,
+        text: text,
+        startMin: times.start,
+        endMin: times.end,
+        label: times.label
+      });
+    }
+
+    return groups;
+  }
+
+  function parseDDHH(ddhh) {
+    // Parse DDHH format to minutes since midnight of the hour portion
+    // We only care about HH for ±1hr window comparison
+    const hh = parseInt(ddhh.slice(-2));
+    return (hh % 24) * 60;
+  }
+
+  function parseGroupStart(header) {
+    if (header.startsWith('FM')) {
+      // FM241800 → 18:00
+      const hhmmss = header.slice(2);
+      const hh = parseInt(hhmmss.slice(2, 4));
+      const mm = parseInt(hhmmss.slice(4, 6)) || 0;
+      return (hh % 24) * 60 + mm;
+    }
+    const periodMatch = header.match(/(\d{4})\/(\d{4})/);
+    if (periodMatch) {
+      return parseDDHH(periodMatch[1]);
+    }
+    return 0;
+  }
+
+  function parseGroupTimes(header, defaultEnd) {
+    if (header.startsWith('FM')) {
+      // FM241800 → starts at 18:00Z
+      const hhmmss = header.slice(2);
+      const hh = parseInt(hhmmss.slice(2, 4));
+      const mm = parseInt(hhmmss.slice(4, 6)) || 0;
+      const startMin = (hh % 24) * 60 + mm;
+      const dd = hhmmss.slice(0, 2);
+      return { 
+        start: startMin, 
+        end: defaultEnd, 
+        label: `${dd}/${String(hh).padStart(2,'0')}${String(mm).padStart(2,'0')}Z onward` 
+      };
+    }
+    const periodMatch = header.match(/(\d{4})\/(\d{4})/);
+    if (periodMatch) {
+      const s = parseDDHH(periodMatch[1]);
+      const e = parseDDHH(periodMatch[2]);
+      const dd1 = periodMatch[1].slice(0, 2);
+      const hh1 = periodMatch[1].slice(2, 4);
+      const dd2 = periodMatch[2].slice(0, 2);
+      const hh2 = periodMatch[2].slice(2, 4);
+      return { start: s, end: e, label: `${dd1}/${hh1}00–${dd2}/${hh2}00Z` };
+    }
+    return { start: 0, end: defaultEnd, label: '?' };
+  }
+
+  function timeOverlaps(gStart, gEnd, wStart, wEnd) {
+    // Check if two time windows overlap (handles midnight wrap)
+    // Normalize to handle midnight crossing
+    if (gEnd <= gStart) gEnd += 1440; // group crosses midnight
+    if (wEnd <= wStart) wEnd += 1440; // window crosses midnight
+
+    // Check both the original and +1440 shifted versions for midnight wrapping
+    return (gStart < wEnd && gEnd > wStart) || 
+           (gStart < wEnd + 1440 && gEnd > wStart + 1440) ||
+           (gStart + 1440 < wEnd && gEnd + 1440 > wStart);
+  }
+
+  function formatVisibility(visib) {
+    if (visib == null) return '—';
+    if (visib === 0.25) return '1/4 SM';
+    if (visib === 0.5) return '1/2 SM';
+    if (visib === 0.75) return '3/4 SM';
+    if (visib === 1.25) return '1 1/4 SM';
+    if (visib === 1.5) return '1 1/2 SM';
+    if (visib === 1.75) return '1 3/4 SM';
+    if (visib === 2.5) return '2 1/2 SM';
+    return `${visib} SM`;
+  }
+
+  function getCeiling(raw, clouds) {
+    if (raw && /\sVV\d{3}\s/.test(raw)) {
+      return 'Indefinite';
+    }
+
+    if (!Array.isArray(clouds) || clouds.length === 0) return '—';
+
+    const ceilingLayers = clouds.filter(c => c.cover === 'BKN' || c.cover === 'OVC');
+
+    if (ceilingLayers.length > 0) {
+      const lowest = ceilingLayers.reduce((min, layer) => {
+        if (layer.base == null) return min;
+        if (min == null) return layer;
+        return layer.base < min.base ? layer : min;
+      }, null);
+
+      if (lowest && lowest.base != null) {
+        return `${lowest.base} ft`;
+      }
+    }
+
+    return '—';
+  }
+
+  function parseATISRunways(text) {
+    if (!text) return null;
+    const upper = text.toUpperCase();
+    const result = { approaches: [], arrivalRwys: [], departureRwys: [], raw: [] };
+
+    // Split ATIS into sentences (period or double-space delimited)
+    const sentences = upper.split(/[.]/).map(s => s.trim()).filter(Boolean);
+
+    const APCH_TYPES = /(?:SIMULTANEOUS\s+)?(?:INDEPENDENT\s+)?(?:ILS(?:\s+CAT\s*(?:II|III|2|3)[A-C]?)?|RNAV\s*\(?\s*(?:GPS|RNP)\s*\)?|CHARTED\s+VISUAL|VISUAL|LOC(?:ALIZER)?|VOR(?:\/DME)?|NDB|LDA|SDF|GPS|RNP)/gi;
+    const RWY_NUM = /\d{1,2}[LRC]?/g;
+
+    for (const sentence of sentences) {
+      const isApproach = /APCH|APPROACH/i.test(sentence) && /IN\s+USE/i.test(sentence);
+      const isDeparture = /\b(?:DEPG|DEPTG|DEPARTING|DEPARTURE|DEP)\b/i.test(sentence);
+      const isArrival = /\b(?:LANDING|ARRIVAL|ARR|ARRG)\b/i.test(sentence);
+
+      // Extract approach types from approach sentences
+      if (isApproach) {
+        const types = sentence.match(APCH_TYPES);
+        if (types) {
+          types.forEach(t => {
+            const clean = t.trim();
+            if (!result.approaches.includes(clean)) result.approaches.push(clean);
+          });
+        }
+
+        // Extract runways from approach sentence
+        // Could be: "ILS RWY 34C APCH IN USE" or "ILS 34C APCH IN USE" 
+        // or "ILS AND VISUAL APPROACH RWYS 34L AND 34R APCH IN USE"
+        // Get all runway numbers from the sentence, but exclude any that are
+        // explicitly tagged as departure in the same sentence
+        const allRwys = sentence.match(RWY_NUM);
+        if (allRwys) {
+          // Check if this sentence also has departure info
+          // e.g. "ILS 34C APCH IN USE DEPG RWY 16L" — 34C is arrival, 16L is dep
+          const depPart = sentence.match(/\b(?:DEPG|DEPTG|DEPARTING|DEPARTURE|DEP)\b\s+(?:RWYS?|RUNWAYS?)?\s*([\dLRC\s,AND\/]+)/i);
+          const depRwys = depPart ? (depPart[1].match(RWY_NUM) || []) : [];
+          
+          // Get the approach portion (everything before DEPG/DEP keyword)
+          const depIdx = sentence.search(/\b(?:DEPG|DEPTG|DEPARTING|DEPARTURE)\b/i);
+          const apchPortion = depIdx > -1 ? sentence.substring(0, depIdx) : sentence;
+          const apchRwys = apchPortion.match(RWY_NUM) || [];
+
+          apchRwys.forEach(r => {
+            if (!result.arrivalRwys.includes(r)) result.arrivalRwys.push(r);
+          });
+          depRwys.forEach(r => {
+            if (!result.departureRwys.includes(r)) result.departureRwys.push(r);
+          });
+        }
+        result.raw.push(sentence);
+      }
+
+      // Standalone departure sentence (not part of approach sentence)
+      if (isDeparture && !isApproach) {
+        const depMatch = sentence.match(/\b(?:DEPG|DEPTG|DEPARTING|DEPARTURE|DEP)\b\s+(?:RWYS?|RUNWAYS?)?\s*([\dLRC\s,AND\/]+)/i);
+        if (depMatch) {
+          const rwys = depMatch[1].match(RWY_NUM);
+          if (rwys) rwys.forEach(r => {
+            if (!result.departureRwys.includes(r)) result.departureRwys.push(r);
+          });
+        }
+      }
+
+      // Standalone arrival sentence
+      if (isArrival && !isApproach) {
+        const arrMatch = sentence.match(/\b(?:LANDING|ARRIVAL|ARR|ARRG)\b\s+(?:RWYS?|RUNWAYS?)?\s*([\dLRC\s,AND\/]+)/i);
+        if (arrMatch) {
+          const rwys = arrMatch[1].match(RWY_NUM);
+          if (rwys) rwys.forEach(r => {
+            if (!result.arrivalRwys.includes(r)) result.arrivalRwys.push(r);
+          });
+        }
+      }
+    }
+
+    // Also check for departure info that might be in the same sentence as approach
+    // but separated by comma/period — scan full text for standalone DEPG patterns
+    const depGlobal = upper.match(/\b(?:DEPG|DEPTG)\s+(?:RWYS?|RUNWAYS?)?\s*([\dLRC\s,AND\/]+)/gi);
+    if (depGlobal) {
+      depGlobal.forEach(dm => {
+        const rwys = dm.match(RWY_NUM);
+        if (rwys) rwys.forEach(r => {
+          if (!result.departureRwys.includes(r)) result.departureRwys.push(r);
+        });
+      });
+    }
+
+    if (result.approaches.length === 0 && result.arrivalRwys.length === 0 && result.departureRwys.length === 0) {
+      return null;
+    }
+
+    return result;
+  }
+
+  function renderRunwayInfo(atisText) {
+    const info = parseATISRunways(atisText);
+    if (!info) return '';
+
+    let html = '<div class="rwy-info-grid">';
+
+    if (info.approaches.length > 0) {
+      html += `<div class="rwy-info-item">
+        <div class="rwy-info-label">Approaches In Use</div>
+        <div class="rwy-info-value">${info.approaches.join(', ')}</div>
+      </div>`;
+    }
+
+    if (info.arrivalRwys.length > 0) {
+      html += `<div class="rwy-info-item">
+        <div class="rwy-info-label">Arrival Rwys</div>
+        <div class="rwy-info-value rwy-info-arr">${info.arrivalRwys.join(', ')}</div>
+      </div>`;
+    }
+
+    if (info.departureRwys.length > 0) {
+      html += `<div class="rwy-info-item">
+        <div class="rwy-info-label">Departure Rwys</div>
+        <div class="rwy-info-value rwy-info-dep">${info.departureRwys.join(', ')}</div>
+      </div>`;
+    }
+
+    html += '</div>';
+    return html;
+  }
+
+  function highlightRunways(text) {
+    if (!text) return '';
+
+    // Highlight arrival runways (green)
+    text = text.replace(
+      /(LANDING|ARRIVAL|ARR)\s+(RUNWAY|RWY|RUNWAYS)\s*([\d\s,LRC]+)/gi,
+      (match, keyword, rwy, nums) => {
+        const highlighted = nums.replace(/(\d{2}[LRC]?)/g, '<span class="rwy-arr">$1</span>');
+        return `${keyword} ${rwy} ${highlighted}`;
+      }
+    );
+
+    // Highlight departure runways (amber)
+    text = text.replace(
+      /(DEPARTING|DEPARTURE|DEP)\s+(RUNWAY|RWY|RUNWAYS)\s*([\d\s,LRC]+)/gi,
+      (match, keyword, rwy, nums) => {
+        const highlighted = nums.replace(/(\d{2}[LRC]?)/g, '<span class="rwy-dep">$1</span>');
+        return `${keyword} ${rwy} ${highlighted}`;
+      }
+    );
+
+    return text;
+  }
+
+  // ========== Destination Management ==========
+
+  function addDestination() {
+    const raw = document.getElementById('icaoInput').value.trim().toUpperCase().replace(/[^A-Z]/g, '');
+
+    if (raw.length === 3) {
+      showToast('US airports require 4-letter ICAO codes (e.g., KSEA for Seattle, not SEA)', 4500);
+      return;
+    }
+
+    if (raw.length !== 4) {
+      showToast('Enter a 4-letter ICAO code');
+      return;
+    }
+
+    if (!isUSAirport(raw)) {
+      showToast('US airports only: must start with K, P, T, or PA (e.g., KSEA, PANC, PHNL, TJSJ)', 4500);
+      return;
+    }
+
+    if (destinations.find(d => d.icao === raw)) {
+      showToast(`${raw} already monitored`);
+      return;
+    }
+
+    // Add to beginning of array (newest first)
+    destinations.unshift({ icao: raw, eta: getDefaultETA() });
+    persist();
+    document.getElementById('icaoInput').value = '';
+    renderAll();
+    fetchDestination(raw, getDefaultETA()).then(renderAll);
+  }
+
+  function removeDestination(icao) {
+    destinations = destinations.filter(d => d.icao !== icao);
+    delete destData[icao];
+    delete prevStatus[icao];
+    persist();
+    renderAll();
+  }
+
+  document.getElementById('icaoInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') addDestination();
+  });
+
+  function persist() {
+    localStorage.setItem('dest_airports_v3', JSON.stringify(destinations));
+  }
+
+  // ========== Rendering ==========
+
+  function getDestStatus(data, threshFt) {
+    if (!data || data.loading || data.error) return 'ok';
+
+    // Priority 1: RVR critical
+    if (data.rvrList && data.rvrList.length > 0) {
+      const minRVR = Math.min(...data.rvrList.map(r => r.val));
+      if (minRVR < threshFt) return 'crit';
+      if (minRVR < threshFt * 1.25) return 'warn';
+    }
+
+    // Priority 2: Alternate required
+    if (data.alternateRequired && data.alternateRequired.required) {
+      return 'warn';
+    }
+
+    // Priority 3: Flight category
+    if (data.metar && data.metar.fltcat) {
+      if (data.metar.fltcat === 'LIFR' || data.metar.fltcat === 'IFR') {
+        return 'warn';
+      }
+    }
+
+    return 'ok';
+  }
+
+  function getPriorityAlert(data, threshFt) {
+    if (!data || data.loading || data.error) return null;
+
+    // Check RVR critical
+    if (data.rvrList && data.rvrList.length > 0) {
+      const minRVR = Math.min(...data.rvrList.map(r => r.val));
+      if (minRVR < threshFt) {
+        return {
+          level: 'crit',
+          message: `RVR ${minRVR} ft — below ${Math.round(threshFt)} ft threshold`
+        };
+      }
+    }
+
+    // Check alternate required
+    if (data.alternateRequired && data.alternateRequired.required) {
+      return {
+        level: 'warn',
+        message: `Alternate Required — ${data.alternateRequired.reason}`
+      };
+    }
+
+    return null;
+  }
+
+  function renderAll() {
+    const grid = document.getElementById('destGrid');
+    const threshFt = getThreshFt();
+
+    if (destinations.length === 0) {
+      grid.innerHTML = '<div class="empty">No destinations monitored — add a US airport above</div>';
+      return;
+    }
+
+    grid.innerHTML = destinations.map(dest => renderDestCard(dest.icao, dest.eta, threshFt)).join('');
+
+    // Check for alerts
+    destinations.forEach(dest => {
+      const data = destData[dest.icao];
+      if (!data || data.loading || data.error) return;
+
+      const status = getDestStatus(data, threshFt);
+      const alert = getPriorityAlert(data, threshFt);
+
+      if (status === 'crit' && prevStatus[dest.icao] !== 'crit' && alert) {
+        fireAlert(dest.icao, alert.message);
+      } else if (status === 'ok' && prevStatus[dest.icao] === 'crit') {
+        fireGoodAlert(dest.icao, 'Conditions now above threshold');
+      }
+
+      prevStatus[dest.icao] = status;
+    });
+  }
+
+  function renderDestCard(icao, eta, threshFt) {
+    const data = destData[icao];
+
+    if (!data || data.loading) {
+      return `
+        <div class="dest-card ok">
+          <div class="dest-header">
+            <div class="dest-title">
+              <span class="dest-icao">${icao}</span>
+            </div>
+            <div class="eta-input-group">
+              <span>ETA:</span>
+              <input type="text" class="eta-input" value="${eta}" maxlength="4" placeholder="0000"
+                oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,4)"
+                onchange="updateETA('${icao}', this.value)" />
+              <span class="eta-z">Z</span>
+            </div>
+            <button class="remove-btn" onclick="removeDestination('${icao}')">×</button>
+          </div>
+          <div class="dest-body">
+            <span class="badge dim">loading…</span>
+          </div>
+        </div>
+      `;
+    }
+
+    if (data.error) {
+      return `
+        <div class="dest-card ok">
+          <div class="dest-header">
+            <div class="dest-title">
+              <span class="dest-icao">${icao}</span>
+            </div>
+            <div class="eta-input-group">
+              <span>ETA:</span>
+              <input type="text" class="eta-input" value="${eta}" maxlength="4" placeholder="0000"
+                oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,4)"
+                onchange="updateETA('${icao}', this.value)" />
+              <span class="eta-z">Z</span>
+            </div>
+            <button class="remove-btn" onclick="removeDestination('${icao}')">×</button>
+          </div>
+          <div class="dest-body">
+            <span class="badge warn">error</span>
+            <div style="font-size:10px;color:var(--muted);margin-top:10px;line-height:1.6">${data.error}</div>
+          </div>
+        </div>
+      `;
+    }
+
+    const status = getDestStatus(data, threshFt);
+    const alert = getPriorityAlert(data, threshFt);
+    const metar = data.metar || {};
+    const rvr = data.rvrList || [];
+    const alt = data.alternateRequired || { status: 'unknown', required: false, reason: 'No TAF available' };
+    const atis = data.atis;
+
+    // Build RVR inline display
+    let rvrHTML = '';
+    if (rvr.length > 0) {
+      rvrHTML = rvr.map(r => {
+        const cls = r.val < threshFt ? 'crit' : r.val < threshFt * 1.25 ? 'warn' : 'ok';
+        const pfx = r.mod === 'M' ? '<' : r.mod === 'P' ? '>' : '';
+        const hiPfx = r.varHiMod === 'M' ? '<' : r.varHiMod === 'P' ? '>' : '';
+        const val = r.varHi ? `${pfx}${r.val}V${hiPfx}${r.varHi}` : `${pfx}${r.val}`;
+        return `
+          <div class="rvr-rwy-inline">
+            <span class="rvr-rwy-label">${r.rwy}:</span>
+            <span class="rvr-rwy-value ${cls}">${val} ft</span>
+          </div>
+        `;
+      }).join('');
+    } else {
+      rvrHTML = '<span style="color:var(--muted);font-size:11px;">Not reported</span>';
+    }
+
+    // Build info rows
+    const vis = formatVisibility(metar.visib);
+    const ceil = getCeiling(metar.rawOb, metar.clouds);
+    let wind = '—';
+    if (metar.wspd != null) {
+      const dir = metar.wdir === 0 && metar.wspd === 0 ? 'CALM' : `${String(metar.wdir || 0).padStart(3, '0')}°`;
+      wind = `${dir} ${metar.wspd}${metar.wgst ? 'G' + metar.wgst : ''}KT`;
+    }
+
+    const fltCat = metar.fltcat || '—';
+    const fltCatCls = { VFR: 'ok', MVFR: 'dim', IFR: 'warn', LIFR: 'crit' }[fltCat] || 'dim';
+
+    let obsStr = '—';
+    if (metar.reportTime) {
+      // Try space-separated format: "2024-02-24 14:30:00"
+      const timePart = metar.reportTime.split(' ')[1] || metar.reportTime.split('T')[1] || '';
+      if (timePart) {
+        obsStr = timePart.slice(0, 5) + 'Z';
+      }
+    }
+    // Fallback: extract from raw METAR (e.g. "KSEA 241453Z ...")
+    if (obsStr === '—' && metar.rawOb) {
+      const rawMatch = metar.rawOb.match(/\b(\d{2})(\d{2})(\d{2})Z\b/);
+      if (rawMatch) {
+        obsStr = `${rawMatch[2]}${rawMatch[3]}Z`;
+      }
+    }
+
+    const name = metar.name || '';
+    
+    // ATIS handling
+    let atisContent;
+    let rwyInfoHTML = '';
+    if (atis) {
+      const atisHighlighted = highlightRunways(atis);
+      atisContent = `<div class="atis-text">${atisHighlighted}</div>`;
+      rwyInfoHTML = renderRunwayInfo(atis);
+    } else {
+      atisContent = `<div class="atis-unavailable">D-ATIS not available for this airport</div>`;
+    }
+
+    return `
+      <div class="dest-card ${status}">
+        <div class="dest-header">
+          <div class="dest-title">
+            <span class="dest-icao">${icao}</span>
+            ${name ? `<span class="dest-name">${name}</span>` : ''}
+          </div>
+          <div class="eta-input-group">
+            <span>ETA:</span>
+            <input type="text" class="eta-input" value="${eta}" maxlength="4" placeholder="0000"
+              oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,4)"
+              onchange="updateETA('${icao}', this.value)" />
+            <span class="eta-z">Z</span>
+          </div>
+          <button class="remove-btn" onclick="removeDestination('${icao}')">×</button>
+        </div>
+        ${alert ? `
+          <div class="alert-banner ${alert.level}">
+            <span class="alert-icon">⚠</span>
+            <span>${alert.message}</span>
+          </div>
+        ` : ''}
+        <div class="dest-body">
+          ${rwyInfoHTML}
+          <div class="info-row">
+            <div class="info-item" style="flex:2;">
+              <div class="info-label">RVR</div>
+              <div class="rvr-inline">${rvrHTML}</div>
+            </div>
+          </div>
+          <div class="info-row">
+            <div class="info-item" style="flex:1;">
+              <div class="info-label">Alternate (121 Domestic)${alt.windowLabel ? ` — checking ${alt.windowLabel}` : ''}</div>
+              ${alt.status === 'advisory' ? `
+                <div class="alt-advisory">⚠ TAF contains alternate-triggering conditions — enter ETA to check</div>
+                <div class="alt-trigger-list">
+                  ${alt.triggers.map(t => `
+                    <div class="alt-trigger-item">
+                      <span class="alt-trigger-reason">${t.reason}</span>
+                      <span class="alt-trigger-time">${t.type} ${t.timeWindow}</span>
+                      <div class="alt-trigger-taf">${t.tafExcerpt}</div>
+                    </div>
+                  `).join('')}
+                </div>
+                <div class="alt-enter-eta">Enter ETA above to check ±1hr window</div>
+              ` : alt.status === 'required' ? `
+                <div class="info-value warn">REQUIRED — ${alt.reason}</div>
+                <div class="alt-detail">
+                  <div class="alt-detail-label">TAF Excerpt (${alt.timeWindow || ''})</div>
+                  <div class="alt-detail-taf">${alt.tafExcerpt}</div>
+                  <div class="alt-detail-explain">${alt.explanation || ''}</div>
+                </div>
+                ${alt.otherTriggers && alt.otherTriggers.length > 0 ? `
+                  <div class="alt-note-outside">Also note: ${alt.otherTriggers.map(t => `${t.reason} in ${t.type} ${t.timeWindow}`).join('; ')} (outside ETA window)</div>
+                ` : ''}
+              ` : alt.status === 'not-required' && alt.hasETA ? `
+                <div class="info-value ok">Not Required</div>
+                ${alt.otherTriggers && alt.otherTriggers.length > 0 ? `
+                  <div class="alt-note-outside">Note: TAF has conditions outside your ETA window — ${alt.otherTriggers.map(t => `${t.reason} in ${t.type} ${t.timeWindow}`).join('; ')}</div>
+                ` : ''}
+              ` : alt.status === 'unknown' ? `
+                <div class="info-value" style="color:var(--muted);">${alt.reason}</div>
+              ` : `
+                <div class="info-value ok">Not Required</div>
+              `}
+            </div>
+          </div>
+          <div class="info-row">
+            <div class="info-item">
+              <div class="info-label">Visibility</div>
+              <div class="info-value">${vis}</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">Ceiling</div>
+              <div class="info-value">${ceil}</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">Wind</div>
+              <div class="info-value">${wind}</div>
+            </div>
+          </div>
+          <div class="badges">
+            <span class="badge ${fltCatCls}">${fltCat}</span>
+          </div>
+          
+          <div class="expandable">
+            <button class="expand-btn" onclick="toggleExpand('atis-${icao}', this)">
+              <span class="expand-icon">▸</span>
+              <span>D-ATIS</span>
+            </button>
+            <div class="expand-content" id="atis-${icao}">
+              ${atisContent}
+            </div>
+          </div>
+          
+          <div class="expandable">
+            <button class="expand-btn" onclick="toggleExpand('weather-${icao}', this)">
+              <span class="expand-icon">▸</span>
+              <span>Full Weather</span>
+            </button>
+            <div class="expand-content" id="weather-${icao}">
+              ${metar.rawOb ? `<div class="weather-text"><strong>METAR:</strong><br>${metar.rawOb}</div>` : ''}
+              ${data.taf && data.taf.rawTAF ? `<div class="weather-text"><strong>TAF:</strong><br>${data.taf.rawTAF}</div>` : ''}
+            </div>
+          </div>
+          
+          <div class="obs-time">Observed: ${obsStr}</div>
+        </div>
+      </div>
+    `;
+  }
+
+  function toggleExpand(id, btn) {
+    const content = document.getElementById(id);
+    const isOpen = content.classList.contains('open');
+
+    if (isOpen) {
+      content.classList.remove('open');
+      btn.classList.remove('open');
+    } else {
+      content.classList.add('open');
+      btn.classList.add('open');
+    }
+  }
+
+  async function refreshAll() {
+    document.getElementById('lastUpdate').textContent = 'refreshing…';
+    await Promise.all(destinations.map(d => fetchDestination(d.icao, d.eta)));
+    renderAll();
+    const now = new Date();
+    const ts = `${String(now.getUTCHours()).padStart(2, '0')}${String(now.getUTCMinutes()).padStart(2, '0')}Z`;
+    document.getElementById('lastUpdate').textContent = `refreshed ${ts} — auto every 3 min`;
+  }
+
+  // ========== FAA Feed ==========
+
+  function faaTier(raw) {
+    if (!raw || raw === '(na)' || raw.toLowerCase() === 'na' || raw === '00') return 'na';
+    const clean = raw.replace(/[^0-9>]/g, '');
+    if (raw.includes('>6000') || raw === '6000+' || clean === '>6000') return 'clear';
+    const n = parseInt(raw.replace(/[^0-9]/g, ''));
+    if (isNaN(n)) return 'na';
+    if (n >= 6000) return 'clear';
+    if (n >= 2500) return '1';
+    if (n >= 1300) return '2';
+    if (n >= 800) return '3';
+    return '4';
+  }
+
+  function tierClass(t) {
+    return { clear: 't-clear', '1': 't-1', '2': 't-2', '3': 't-3', '4': 't-4', 'na': 't-na' }[t] || 't-na';
+  }
+
+  async function fetchFAA() {
+    document.getElementById('faaStatus') && (document.getElementById('faaStatus').textContent = 'Loading FAA feed…');
+    try {
+      const res = await fetch(faaUrl());
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const text = await res.text();
+
+      const entries = [];
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(text, 'text/html');
+      const links = doc.querySelectorAll('a[href*="airport="]');
+      links.forEach(a => {
+        const href = a.getAttribute('href') || '';
+        const match = href.match(/airport=([A-Z]{2,4})/i);
+        if (!match) return;
+        const code = match[1].toUpperCase();
+        const td = a.closest('td');
+        if (!td) return;
+        const full = td.textContent.trim();
+        const val = full.replace(code, '').trim().replace(/[()]/g, '');
+        entries.push({ code, raw: val || '(na)' });
+      });
+
+      faaData = entries.filter(e => e.code && e.code.length >= 2);
+      renderFAA();
+    } catch (e) {
+      const g = document.getElementById('faaGrid');
+      g.innerHTML = `<div class="faa-status" style="color:var(--warn-text)">Failed to load FAA feed: ${e.message}<br><span style="font-size:10px;color:var(--muted)">corsproxy.io may be temporarily unavailable. Try refreshing.</span></div>`;
+    }
+  }
+
+  function renderFAA() {
+    const grid = document.getElementById('faaGrid');
+    const search = (document.getElementById('faaSearch').value || '').toUpperCase().trim();
+    const lowOnly = document.getElementById('showLowOnly').checked;
+
+    if (faaData.length === 0) {
+      grid.innerHTML = '<div class="faa-status">No data.</div>';
+      return;
+    }
+
+    const filtered = faaData.filter(e => {
+      if (search && !e.code.includes(search)) return false;
+      if (lowOnly) {
+        const t = faaTier(e.raw);
+        if (t === 'clear' || t === 'na') return false;
+      }
+      return true;
+    });
+
+    if (filtered.length === 0) {
+      grid.innerHTML = '<div class="faa-status">No airports match filter.</div>';
+      return;
+    }
+
+    grid.innerHTML = filtered.map(e => {
+      const t = faaTier(e.raw);
+      const cls = tierClass(t);
+      let disp = e.raw;
+      if (disp.includes('6000') && !disp.startsWith('>')) disp = '>6000';
+      if (disp === '00' || disp === '0') disp = '0';
+      return `<div class="faa-tile ${cls}" title="${e.code} — ${disp} ft RVR" onclick="toggleFAADetail('${e.code}')" style="cursor:pointer;">
+        <span class="f-code">${e.code}</span>
+        <span class="f-val">${disp}</span>
+      </div>`;
+    }).join('');
+    updatePinnedHighlights();
+  }
+
+  async function refreshFAA() {
+    await fetchFAA();
+    const now = new Date();
+    const ts = `${String(now.getUTCHours()).padStart(2, '0')}${String(now.getUTCMinutes()).padStart(2, '0')}Z`;
+    showToast(`FAA feed refreshed ${ts}`);
+  }
+
+  function showToast(msg, dur = 3000) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), dur);
+  }
+
+  let pinnedRVR = JSON.parse(localStorage.getItem('pinned_rvr_v3') || '[]');
+  let pinnedRVRData = {};
+  let pinnedRVRTimers = {};
+  let pinnedPrevStatus = {};
+  const PINNED_REFRESH_MS = 60 * 1000;
+
+  function faaDetailUrl(code) {
+    return PROXY + encodeURIComponent(`https://rvr.data.faa.gov/cgi-bin/rvr-details.pl?content=table&airport=${code}&rrate=medium&layout=2x2&gifsize=large&fontsize=large&fs=lg`);
+  }
+
+  function persistPinned() {
+    localStorage.setItem('pinned_rvr_v3', JSON.stringify(pinnedRVR));
+  }
+
+  function getPinnedThreshFt() {
+    const v = parseFloat(document.getElementById('pinnedThreshVal')?.value) || 2400;
+    return document.getElementById('pinnedThreshUnit')?.value === 'm' ? v * 3.28084 : v;
+  }
+
+  function applyPinnedPreset() {
+    const v = document.getElementById('pinnedPresetSel').value;
+    if (!v) return;
+    document.getElementById('pinnedThreshVal').value = v;
+    document.getElementById('pinnedThreshUnit').value = 'ft';
+    rerenderAllPinned();
+  }
+
+  function updatePinnedThreshVisibility() {
+    const row = document.getElementById('pinnedThreshRow');
+    if (row) row.style.display = pinnedRVR.length > 0 ? 'flex' : 'none';
+  }
+
+  function rerenderAllPinned() {
+    pinnedRVR.forEach(code => { if (pinnedRVRData[code]) renderPinnedCard(code); });
+  }
+
+  setTimeout(() => {
+    document.getElementById('pinnedThreshVal')?.addEventListener('input', rerenderAllPinned);
+    document.getElementById('pinnedThreshUnit')?.addEventListener('change', rerenderAllPinned);
+  }, 0);
+
+  function parseRVRValue(val) {
+    if (!val || val === '—' || val === '' || val.toLowerCase() === 'na') return null;
+    const trimmed = val.trim();
+    if (!trimmed || trimmed === '—' || trimmed === '0') return null;
+    if (trimmed.includes('>') && trimmed.includes('6000')) return 7000;
+    // Must contain at least one digit to be valid
+    if (!/\d/.test(trimmed)) return null;
+    const n = parseInt(trimmed.replace(/[^0-9]/g, ''));
+    if (isNaN(n) || n === 0) return null;
+    return n;
+  }
+
+  function getLowestPinnedRVR(detail) {
+    if (!detail || !detail.runways) return null;
+    let lowest = null;
+    for (const r of detail.runways) {
+      for (const field of ['td', 'mp', 'ro']) {
+        const v = parseRVRValue(r[field]);
+        if (v !== null && (lowest === null || v < lowest.val)) {
+          lowest = { val: v, rwy: r.rwy, sensor: field.toUpperCase(), raw: r[field] };
+        }
+      }
+    }
+    return lowest;
+  }
+
+  function checkPinnedAlert(code, detail) {
+    const threshFt = getPinnedThreshFt();
+    const lowest = getLowestPinnedRVR(detail);
+    if (!lowest || lowest.val >= threshFt) return null;
+    return {
+      level: lowest.val < threshFt * 0.5 ? 'crit' : 'warn',
+      message: `RVR ${lowest.raw} ft on Rwy ${lowest.rwy} ${lowest.sensor} — below ${Math.round(threshFt)} ft threshold`
+    };
+  }
+
+  function toggleFAADetail(code) {
+    if (pinnedRVR.includes(code)) {
+      removePinnedRVR(code);
+    } else {
+      pinnedRVR.unshift(code);
+      persistPinned();
+      updatePinnedThreshVisibility();
+      renderPinnedCards();
+      fetchPinnedRVR(code);
+      pinnedRVRTimers[code] = setInterval(() => fetchPinnedRVR(code), PINNED_REFRESH_MS);
+    }
+    updatePinnedHighlights();
+  }
+
+  function removePinnedRVR(code) {
+    pinnedRVR = pinnedRVR.filter(c => c !== code);
+    delete pinnedRVRData[code];
+    delete pinnedPrevStatus[code];
+    if (pinnedRVRTimers[code]) { clearInterval(pinnedRVRTimers[code]); delete pinnedRVRTimers[code]; }
+    persistPinned();
+    updatePinnedThreshVisibility();
+    renderPinnedCards();
+    updatePinnedHighlights();
+  }
+
+  function updatePinnedHighlights() {
+    document.querySelectorAll('.faa-tile.selected').forEach(t => t.classList.remove('selected'));
+    document.querySelectorAll('.faa-tile').forEach(t => {
+      const tileCode = t.querySelector('.f-code')?.textContent;
+      if (tileCode && pinnedRVR.includes(tileCode)) t.classList.add('selected');
+    });
+  }
+
+  async function fetchPinnedRVR(code) {
+    try {
+      const res = await fetch(faaDetailUrl(code));
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const html = await res.text();
+      pinnedRVRData[code] = parseFAADetail(html, code);
+      pinnedRVRData[code].lastRefresh = new Date();
+      renderPinnedCard(code);
+
+      // Check for threshold alerts
+      const alert = checkPinnedAlert(code, pinnedRVRData[code]);
+      const prevState = pinnedPrevStatus[code];
+      if (alert && prevState !== 'alert') {
+        fireAlert(code, alert.message);
+      } else if (!alert && prevState === 'alert') {
+        const lowest = getLowestPinnedRVR(pinnedRVRData[code]);
+        const lowestStr = lowest ? `${lowest.raw} ft` : 'N/A';
+        fireGoodAlert(code, `RVR now above threshold — lowest: ${lowestStr}`);
+      }
+      pinnedPrevStatus[code] = alert ? 'alert' : 'ok';
+    } catch (e) {
+      pinnedRVRData[code] = pinnedRVRData[code] || { code, name: '', runways: [], error: e.message };
+      pinnedRVRData[code].error = e.message;
+      renderPinnedCard(code);
+    }
+  }
+
+  function parseFAADetail(html, code) {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const result = { code, name: '', time: '', runways: [] };
+
+    const bolds = doc.querySelectorAll('b, strong');
+    bolds.forEach(b => {
+      const txt = b.textContent.trim();
+      if (txt.startsWith(code) && txt.includes('(')) {
+        const nameMatch = txt.match(/\(([^)]+)\)/);
+        if (nameMatch) result.name = nameMatch[1];
+      }
+    });
+
+    const allText = doc.body.textContent;
+    const timeMatch = allText.match(/(\d{2}:\d{2}:\d{2}z)/i);
+    if (timeMatch) result.time = timeMatch[1].toUpperCase();
+    const dateMatch = allText.match(/(\d{2}\/\d{2}\/\d{4})/);
+    if (dateMatch) result.date = dateMatch[1];
+
+    const tables = doc.querySelectorAll('table');
+    tables.forEach(table => {
+      const rows = table.querySelectorAll('tr');
+      if (rows.length < 2) return;
+      const firstRowCells = rows[0].querySelectorAll('td, th');
+      const headerTexts = Array.from(firstRowCells).map(c => c.textContent.trim().toUpperCase());
+      if (!headerTexts.includes('RWY') || !headerTexts.includes('TD')) return;
+
+      const colMap = {};
+      headerTexts.forEach((h, i) => { colMap[h] = i; });
+
+      for (let i = 1; i < rows.length; i++) {
+        const cells = rows[i].querySelectorAll('td, th');
+        if (cells.length < 3) continue;
+        const rwyIdx = colMap['RWY'] ?? 0;
+        const rwy = cells[rwyIdx]?.textContent.trim();
+        if (!rwy || !/^\d{2}[LRC]?$/.test(rwy)) continue;
+
+        const entry = { rwy };
+        ['TD', 'MP', 'RO', 'E', 'C'].forEach(f => {
+          if (colMap[f] !== undefined && cells[colMap[f]]) {
+            entry[f.toLowerCase()] = cells[colMap[f]].textContent.trim() || '—';
+          } else {
+            entry[f.toLowerCase()] = '—';
+          }
+        });
+        result.runways.push(entry);
+      }
+    });
+
+    return result;
+  }
+
+  function detailCellClass(val) {
+    if (!val || val === '—' || val === '' || val.toLowerCase() === 'na') return 't-na';
+    return tierClass(faaTier(val));
+  }
+
+  function getPinnedCardStatus(detail) {
+    if (!detail || !detail.runways || detail.runways.length === 0) return 'ok';
+    const threshFt = getPinnedThreshFt();
+    let lowestVal = Infinity;
+    for (const r of detail.runways) {
+      for (const field of ['td', 'mp', 'ro']) {
+        const v = parseRVRValue(r[field]);
+        if (v !== null && v < lowestVal) lowestVal = v;
+      }
+    }
+    if (lowestVal < threshFt) return 'crit';
+    if (lowestVal < threshFt * 1.25) return 'warn';
+    return 'ok';
+  }
+
+  function renderPinnedCard(code) {
+    const el = document.getElementById(`pinned-rvr-${code}`);
+    if (!el) return;
+    const detail = pinnedRVRData[code];
+
+    if (!detail || detail.error) {
+      el.className = 'dest-card ok';
+      el.innerHTML = buildPinnedCardHeader(code, detail) +
+        `<div class="dest-body"><div class="faa-detail-loading" style="color:var(--warn-text)">${detail?.error || 'Loading…'}</div></div>`;
+      return;
+    }
+
+    const status = getPinnedCardStatus(detail);
+    el.className = `dest-card ${status}`;
+
+    if (detail.runways.length === 0) {
+      el.innerHTML = buildPinnedCardHeader(code, detail) +
+        `<div class="dest-body"><div class="faa-detail-loading">No runway detail data available.</div></div>`;
+      return;
+    }
+
+    const hasMp = detail.runways.some(r => r.mp && r.mp !== '—');
+    const pinnedAlert = checkPinnedAlert(code, detail);
+
+    let headerRow = '<th>Rwy</th><th>TD</th>';
+    if (hasMp) headerRow += '<th>MP</th>';
+    headerRow += '<th>RO</th>';
+
+    const threshFt = getPinnedThreshFt();
+    const bodyRows = detail.runways.map(r => {
+      let row = `<td>${r.rwy}</td>`;
+      row += `<td class="${detailCellClass(r.td)}">${r.td || '—'}</td>`;
+      if (hasMp) row += `<td class="${detailCellClass(r.mp)}">${r.mp || '—'}</td>`;
+      row += `<td class="${detailCellClass(r.ro)}">${r.ro || '—'}</td>`;
+      return `<tr>${row}</tr>`;
+    }).join('');
+
+    const refreshTime = detail.lastRefresh ?
+      `${String(detail.lastRefresh.getUTCHours()).padStart(2,'0')}${String(detail.lastRefresh.getUTCMinutes()).padStart(2,'0')}Z` : '';
+
+    el.innerHTML = buildPinnedCardHeader(code, detail) +
+      (pinnedAlert ? `
+        <div class="alert-banner ${pinnedAlert.level}">
+          <span class="alert-icon">⚠</span>
+          <span>${pinnedAlert.message}</span>
+        </div>` : '') + `
+      <div class="dest-body">
+        <div style="font-size:9px;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:8px;">
+          TD = Touchdown · ${hasMp ? 'MP = Midpoint · ' : ''}RO = Rollout · Values in feet · Current real-time sensor readings
+        </div>
+        <table class="faa-detail-table">
+          <thead><tr>${headerRow}</tr></thead>
+          <tbody>${bodyRows}</tbody>
+        </table>
+        <div class="obs-time">
+          FAA data: ${detail.time || '—'} · Last fetched: ${refreshTime} · Auto-refreshing every 60s ·
+          <a href="https://rvr.data.faa.gov/cgi-bin/rvr-details.pl?content=table&airport=${code}" target="_blank" rel="noopener" style="color:var(--ok-text);text-decoration:none;">View on FAA</a>
+        </div>
+      </div>`;
+  }
+
+  function buildPinnedCardHeader(code, detail) {
+    return `
+      <div class="dest-header">
+        <div class="dest-title">
+          <span class="dest-icao">${code}</span>
+          ${detail?.name ? `<span class="dest-name">${detail.name}</span>` : ''}
+        </div>
+        <button class="remove-btn" onclick="removePinnedRVR('${code}')">×</button>
+      </div>`;
+  }
+
+  function renderPinnedCards() {
+    const container = document.getElementById('faaPinnedCards');
+    if (pinnedRVR.length === 0) {
+      container.innerHTML = '';
+      return;
+    }
+
+    container.innerHTML = pinnedRVR.map(code => {
+      const detail = pinnedRVRData[code];
+      const status = detail ? getPinnedCardStatus(detail) : 'ok';
+      return `<div class="dest-card ${status}" id="pinned-rvr-${code}">
+        ${buildPinnedCardHeader(code, detail)}
+        <div class="dest-body"><div class="faa-detail-loading">Loading RVR details…</div></div>
+      </div>`;
+    }).join('');
+
+    // Render any already-loaded data
+    pinnedRVR.forEach(code => {
+      if (pinnedRVRData[code]) renderPinnedCard(code);
+    });
+  }
+
+  function initPinnedRVR() {
+    updatePinnedThreshVisibility();
+    if (pinnedRVR.length === 0) return;
+    renderPinnedCards();
+    updatePinnedHighlights();
+    pinnedRVR.forEach(code => {
+      fetchPinnedRVR(code);
+      pinnedRVRTimers[code] = setInterval(() => fetchPinnedRVR(code), PINNED_REFRESH_MS);
+    });
+  }
+
+  // ========== FAA OIS (NAS Status) ==========
+
+  function oisUrl() {
+    return PROXY + encodeURIComponent('https://www.fly.faa.gov/ois/oisedit/summary_pub');
+  }
+
+  let oisData = null;
+  let prevOisData = null;
+  const OIS_REFRESH_MS = 5 * 60 * 1000;
+  let oisTimer;
+
+  async function fetchOIS() {
+    const status = document.getElementById('oisStatus');
+    if (status) status.textContent = 'Loading FAA OIS…';
+    try {
+      const res = await fetch(oisUrl());
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const html = await res.text();
+      prevOisData = oisData;
+      oisData = parseOIS(html);
+      if (prevOisData) checkOISChanges(prevOisData, oisData);
+      renderOIS();
+    } catch (e) {
+      document.getElementById('oisContainer').innerHTML =
+        `<div class="ois-status" style="color:var(--warn-text)">Failed to load OIS: ${e.message}<br><span style="font-size:10px;color:var(--muted)">corsproxy.io may be temporarily unavailable. Try refreshing.</span></div>`;
+    }
+  }
+
+  function oisItemKey(category, item) {
+    return `${category}:${item.airport || item.facility || ''}`;
+  }
+
+  function checkOISChanges(oldData, newData) {
+    const categories = [
+      { key: 'gdps', label: 'Ground Delay Program' },
+      { key: 'groundStops', label: 'Ground Stop' },
+      { key: 'delays', label: 'Arrival/Departure Delay' },
+      { key: 'closures', label: 'Airport Closure' },
+      { key: 'deicing', label: 'Deicing' },
+    ];
+
+    for (const cat of categories) {
+      const oldAirports = new Set((oldData[cat.key] || []).map(i => i.airport));
+      const newAirports = new Set((newData[cat.key] || []).map(i => i.airport));
+
+      // New items
+      for (const item of (newData[cat.key] || [])) {
+        if (!oldAirports.has(item.airport)) {
+          const reason = item.reason ? ` — ${item.reason}` : '';
+          fireOISAlert(item.airport, `${cat.label} added${reason}`);
+        }
+      }
+
+      // Removed items
+      for (const item of (oldData[cat.key] || [])) {
+        if (!newAirports.has(item.airport)) {
+          fireOISGoodAlert(item.airport, `${cat.label} removed`);
+        }
+      }
+    }
+  }
+
+  function fireOISAlert(arpt, reason) {
+    const empty = document.getElementById('logEmpty');
+    if (empty) empty.remove();
+    const now = new Date();
+    const ts = `${String(now.getUTCHours()).padStart(2, '0')}${String(now.getUTCMinutes()).padStart(2, '0')}Z`;
+    const log = document.getElementById('alertLog');
+    const row = document.createElement('div');
+    row.className = 'alert-entry';
+    row.innerHTML = `<span class="alert-time">${ts}</span><span class="alert-msg" style="color:var(--warn-text);">⚠ OIS ${arpt} — ${reason}</span>`;
+    log.prepend(row);
+    if (Notification.permission === 'granted') {
+      try {
+        new Notification(`OIS — ${arpt}`, { body: reason, tag: `ois-${arpt}` });
+      } catch (e) {}
+    }
+  }
+
+  function fireOISGoodAlert(arpt, reason) {
+    const empty = document.getElementById('logEmpty');
+    if (empty) empty.remove();
+    const now = new Date();
+    const ts = `${String(now.getUTCHours()).padStart(2, '0')}${String(now.getUTCMinutes()).padStart(2, '0')}Z`;
+    const log = document.getElementById('alertLog');
+    const row = document.createElement('div');
+    row.className = 'alert-entry';
+    row.innerHTML = `<span class="alert-time">${ts}</span><span class="alert-msg" style="color:var(--ok-text);">✓ OIS ${arpt} — ${reason}</span>`;
+    log.prepend(row);
+    if (Notification.permission === 'granted') {
+      try {
+        new Notification(`OIS ✓ ${arpt}`, { body: reason, tag: `ois-${arpt}` });
+      } catch (e) {}
+    }
+  }
+
+  function parseOIS(html) {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const tables = doc.querySelectorAll('table');
+    const data = { gdps: [], groundStops: [], delays: [], closures: [], deicing: [], runway: [], misc: '' };
+
+    // Helper: extract text from cell, clean it
+    const cellText = (cell) => cell ? cell.textContent.trim().replace(/\s+/g, ' ') : '';
+
+    tables.forEach(table => {
+      const headerText = table.textContent.trim().substring(0, 200).toUpperCase();
+
+      // National Programs (GDPs)
+      if (headerText.includes('NATIONAL PROGRAMS') || headerText.includes('PROGRAM NAME')) {
+        const rows = table.querySelectorAll('tr');
+        rows.forEach(row => {
+          const cells = row.querySelectorAll('td');
+          if (cells.length >= 6) {
+            const name = cellText(cells[0]);
+            // Skip header-like rows
+            if (name && name !== 'PROGRAM NAME' && !name.includes('NATIONAL') && name.length <= 10) {
+              data.gdps.push({
+                airport: name,
+                start: cellText(cells[1]),
+                end: cellText(cells[2]),
+                scope: cellText(cells[3]),
+                reason: cellText(cells[4]),
+                avgDelay: cellText(cells[5]),
+                aar: cells.length > 6 ? cellText(cells[6]) : '',
+                pr: cells.length > 7 ? cellText(cells[7]) : ''
+              });
+            }
+          }
+        });
+      }
+
+      // Ground Stops
+      if (headerText.includes('GROUND STOP')) {
+        const rows = table.querySelectorAll('tr');
+        rows.forEach(row => {
+          const cells = row.querySelectorAll('td');
+          if (cells.length >= 4) {
+            const arpt = cellText(cells[0]);
+            if (arpt && arpt !== 'ARPT' && !arpt.includes('GROUND') && arpt.length <= 10) {
+              data.groundStops.push({
+                airport: arpt,
+                update: cellText(cells[1]),
+                poe: cellText(cells[2]),
+                scope: cellText(cells[3]),
+                reason: cells.length > 4 ? cellText(cells[4]) : ''
+              });
+            }
+          }
+        });
+      }
+
+      // Delay Info
+      if (headerText.includes('DELAY INFO') && !headerText.includes('GROUND')) {
+        const rows = table.querySelectorAll('tr');
+        rows.forEach(row => {
+          const cells = row.querySelectorAll('td');
+          if (cells.length >= 4) {
+            const arpt = cellText(cells[0]);
+            if (arpt && arpt !== 'ARPT' && !arpt.includes('DELAY') && arpt.length <= 10) {
+              data.delays.push({
+                airport: arpt,
+                arrDelay: cellText(cells[1]),
+                depDelay: cellText(cells[2]),
+                time: cellText(cells[3]),
+                reason: cells.length > 4 ? cellText(cells[4]) : ''
+              });
+            }
+          }
+        });
+      }
+
+      // Airport Closures
+      if (headerText.includes('AIRPORT CLOSURE')) {
+        const rows = table.querySelectorAll('tr');
+        rows.forEach(row => {
+          const cells = row.querySelectorAll('td');
+          if (cells.length >= 3) {
+            const arpt = cellText(cells[0]);
+            if (arpt && arpt !== 'ARPT' && !arpt.includes('CLOSURE') && arpt.length <= 10) {
+              data.closures.push({
+                airport: arpt,
+                time: cellText(cells[1]),
+                reason: cellText(cells[2]),
+                reopen: cells.length > 3 ? cellText(cells[3]) : ''
+              });
+            }
+          }
+        });
+      }
+
+      // Deicing
+      if (headerText.includes('DEICING')) {
+        const rows = table.querySelectorAll('tr');
+        rows.forEach(row => {
+          const cells = row.querySelectorAll('td');
+          if (cells.length >= 2) {
+            const arpt = cellText(cells[0]);
+            if (arpt && arpt !== 'ARPT' && !arpt.includes('DEICING') && arpt.length <= 10) {
+              data.deicing.push({
+                airport: arpt,
+                dateTime: cellText(cells[1])
+              });
+            }
+          }
+        });
+      }
+
+      // Runway/Equipment
+      if (headerText.includes('RUNWAY') || headerText.includes('EQUIPMENT')) {
+        const rows = table.querySelectorAll('tr');
+        rows.forEach(row => {
+          const cells = row.querySelectorAll('td');
+          if (cells.length >= 2) {
+            const facility = cellText(cells[0]);
+            if (facility && !facility.includes('Facility') && !facility.includes('RUNWAY') && 
+                !facility.includes('complete list') && facility.length <= 10) {
+              data.runway.push({
+                facility: facility,
+                description: cellText(cells[1])
+              });
+            }
+          }
+        });
+      }
+
+      // Miscellaneous
+      if (headerText.includes('MISCELLANEOUS')) {
+        const rows = table.querySelectorAll('tr');
+        rows.forEach(row => {
+          const text = cellText(row);
+          if (text && !text.includes('MISCELLANEOUS')) {
+            data.misc = (data.misc ? data.misc + ' · ' : '') + text;
+          }
+        });
+      }
+    });
+
+    return data;
+  }
+
+  function oisCategoryHTML(title, countType, count, bodyId, content) {
+    const countCls = count > 0 ? (countType === 'crit' ? 'active' : 'info') : 'clear';
+    const countLabel = count > 0 ? count : 'NONE';
+    const autoOpen = count > 0;
+    return `
+      <div class="ois-category">
+        <div class="ois-cat-header ${autoOpen ? 'open' : ''}" onclick="toggleOISCat(this, '${bodyId}')">
+          <div class="ois-cat-title">
+            ${title}
+            <span class="ois-count ${countCls}">${countLabel}</span>
+          </div>
+          <span class="ois-chevron">▸</span>
+        </div>
+        <div class="ois-cat-body ${autoOpen ? 'open' : ''}" id="${bodyId}">
+          ${content}
+        </div>
+      </div>
+    `;
+  }
+
+  function renderOIS() {
+    if (!oisData) return;
+    const container = document.getElementById('oisContainer');
+    let html = '<div class="ois-grid">';
+
+    // GDPs
+    const gdpBody = oisData.gdps.length > 0 ? `
+      <table class="ois-table">
+        <thead><tr><th>Airport</th><th>Start–End</th><th>Scope</th><th>Reason</th><th>Avg Delay</th><th>AAR/PR</th></tr></thead>
+        <tbody>${oisData.gdps.map(g => `
+          <tr>
+            <td class="ois-arpt">${g.airport}</td>
+            <td class="ois-time">${g.start}–${g.end}Z</td>
+            <td>${g.scope}</td>
+            <td class="ois-reason">${g.reason}</td>
+            <td class="ois-delay">${g.avgDelay} min</td>
+            <td>${g.aar}/${g.pr}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    ` : '<div class="ois-empty">No ground delay programs in effect.</div>';
+    html += oisCategoryHTML('Ground Delay Programs', 'crit', oisData.gdps.length, 'ois-gdp', gdpBody);
+
+    // Ground Stops
+    const gsBody = oisData.groundStops.length > 0 ? `
+      <table class="ois-table">
+        <thead><tr><th>Airport</th><th>Update</th><th>POE</th><th>Scope</th><th>Reason</th></tr></thead>
+        <tbody>${oisData.groundStops.map(g => `
+          <tr>
+            <td class="ois-arpt">${g.airport}</td>
+            <td class="ois-time">${g.update}Z</td>
+            <td>${g.poe}</td>
+            <td>${g.scope}</td>
+            <td class="ois-reason">${g.reason}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    ` : '<div class="ois-empty">No ground stops in effect.</div>';
+    html += oisCategoryHTML('Ground Stops', 'crit', oisData.groundStops.length, 'ois-gs', gsBody);
+
+    // Delays
+    const delBody = oisData.delays.length > 0 ? `
+      <table class="ois-table">
+        <thead><tr><th>Airport</th><th>Arr Delay</th><th>Dep Delay</th><th>Time</th><th>Reason</th></tr></thead>
+        <tbody>${oisData.delays.map(d => `
+          <tr>
+            <td class="ois-arpt">${d.airport}</td>
+            <td class="ois-delay">${d.arrDelay || '—'}</td>
+            <td class="ois-delay">${d.depDelay || '—'}</td>
+            <td class="ois-time">${d.time}</td>
+            <td class="ois-reason">${d.reason}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    ` : '<div class="ois-empty">No arrival/departure delays reported.</div>';
+    html += oisCategoryHTML('Arrival / Departure Delays', 'info', oisData.delays.length, 'ois-delay', delBody);
+
+    // Closures
+    const closBody = oisData.closures.length > 0 ? `
+      <table class="ois-table">
+        <thead><tr><th>Airport</th><th>Time</th><th>Reason</th><th>Reopen</th></tr></thead>
+        <tbody>${oisData.closures.map(c => `
+          <tr>
+            <td class="ois-arpt">${c.airport}</td>
+            <td class="ois-time">${c.time}</td>
+            <td class="ois-reason">${c.reason}</td>
+            <td class="ois-time">${c.reopen || '—'}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    ` : '<div class="ois-empty">No airport closures at this time.</div>';
+    html += oisCategoryHTML('Airport Closures', 'crit', oisData.closures.length, 'ois-closures', closBody);
+
+    // Deicing
+    const deiceBody = oisData.deicing.length > 0 ? `
+      <table class="ois-table">
+        <thead><tr><th>Airport</th><th>Since (Day / Time Z)</th></tr></thead>
+        <tbody>${oisData.deicing.map(d => `
+          <tr>
+            <td class="ois-arpt">${d.airport}</td>
+            <td class="ois-time">${d.dateTime}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    ` : '<div class="ois-empty">No deicing activity reported.</div>';
+    html += oisCategoryHTML('Deicing', 'info', oisData.deicing.length, 'ois-deice', deiceBody);
+
+    // Runway/Equipment
+    const rwyBody = oisData.runway.length > 0 ? `
+      <table class="ois-table">
+        <thead><tr><th>Facility</th><th>Description</th></tr></thead>
+        <tbody>${oisData.runway.map(r => `
+          <tr>
+            <td class="ois-arpt">${r.facility}</td>
+            <td>${r.description}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    ` : '<div class="ois-empty">No runway/equipment closures reported.</div>';
+    html += oisCategoryHTML('Runway / Equipment', 'info', oisData.runway.length, 'ois-rwy', rwyBody);
+
+    // Misc
+    if (oisData.misc) {
+      html += `<div class="ois-category"><div class="ois-misc">${oisData.misc}</div></div>`;
+    }
+
+    html += '</div>';
+    container.innerHTML = html;
+  }
+
+  function toggleOISCat(header, bodyId) {
+    const body = document.getElementById(bodyId);
+    const isOpen = body.classList.contains('open');
+    if (isOpen) {
+      body.classList.remove('open');
+      header.classList.remove('open');
+    } else {
+      body.classList.add('open');
+      header.classList.add('open');
+    }
+  }
+
+  async function refreshOIS() {
+    await fetchOIS();
+    const now = new Date();
+    const ts = `${String(now.getUTCHours()).padStart(2, '0')}${String(now.getUTCMinutes()).padStart(2, '0')}Z`;
+    showToast(`OIS refreshed ${ts}`);
+  }
+
+  // ========== Initialize ==========
+
+  updateNotifBar();
+  renderAll();
+
+  Promise.all([refreshAll(), fetchFAA(), fetchOIS()]).then(() => {
+    refreshTimer = setInterval(refreshAll, REFRESH_MS);
+    faaTimer = setInterval(fetchFAA, FAA_REFRESH_MS);
+    oisTimer = setInterval(fetchOIS, OIS_REFRESH_MS);
+    initPinnedRVR();
+  });
+</script>
+</body>
+</html>
